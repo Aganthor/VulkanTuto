@@ -143,6 +143,18 @@ private:
         createSyncObjects();
     }
 
+    void recreateSwapChain()
+    {
+        vkDeviceWaitIdle(m_device);
+
+        createSwapChain();
+        createImageViews();
+        createRenderPass();
+        createGraphicsPipeline();
+        createFramebuffers();
+        createCommandBuffers();
+    }
+
     void drawFrame()
     {
         vkWaitForFences(m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
@@ -780,11 +792,34 @@ private:
         vkDeviceWaitIdle(m_device);
     }
 
+    void cleanupSwapChain()
+    {
+        for (size_t i = 0; i < m_swapChainFramebuffers.size(); ++i)
+        {
+            vkDestroyFramebuffer(m_device, m_swapChainFramebuffers[i], nullptr);
+        }
+
+        vkFreeCommandBuffers(m_device, m_commandPool, static_cast<uint32_t>(m_commandBuffers.size()), m_commandBuffers.data());
+
+        vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+        vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+
+        for (size_t i = 0; i < m_swapChainImageViews.size(); ++i)
+        {
+            vkDestroyImageView(m_device, m_swapChainImageViews[i], nullptr);
+        }
+
+        vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
+    }
+
     //
     //Used to properly cleanup after the user asks to close the application.
     //
     void cleanup()
     {
+        cleanupSwapChain();
+
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
             vkDestroySemaphore(m_device, m_renderFinishedSemaphore[i], nullptr);
@@ -793,27 +828,15 @@ private:
         }
 
         vkDestroyCommandPool(m_device, m_commandPool, nullptr);
-        for (auto framebuffer : m_swapChainFramebuffers)
-        {
-            vkDestroyFramebuffer(m_device, framebuffer, nullptr);
-        }
 
-        vkDestroyPipeline(m_device, m_graphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
-        vkDestroyRenderPass(m_device, m_renderPass, nullptr);
+        vkDestroyDevice(m_device, nullptr);
 
-        for (auto imageView : m_swapChainImageViews)
-        {
-            vkDestroyImageView(m_device, imageView, nullptr);
-        }
         if (enableValidationLayers)
         {
             DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
         }
 
-        vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
         vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-        vkDestroyDevice(m_device, nullptr);
         vkDestroyInstance(m_instance, nullptr);
 
         glfwDestroyWindow(m_window);
@@ -1059,7 +1082,10 @@ private:
         }
         else
         {
-            VkExtent2D actualExtent = {WIDTH, HEIGHT};
+            int width = 0, height = 0;
+            glfwGetFramebufferSize(m_window, &width, &height);
+
+            VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
             actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
             actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
