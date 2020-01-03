@@ -10,7 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SOURCE_FILES main.cpp)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
-find_package(glfw3 3.2 REQUIRED)
+find_package(glfw3 3.3 REQUIRED)
 
 find_package(Vulkan REQUIRED)
 
